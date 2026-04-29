@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user roles and basic info.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "customer"] },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Information about interior design projects.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "year": { "type": "string" },
+        "price": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["public", "draft"] },
+        "order": { "type": "number" }
+      },
+      "required": ["title", "imageUrl", "category", "year"]
+    },
+    "ConsultationRequest": {
+      "title": "Consultation Request",
+      "description": "Customer requests for consultations.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string", "format": "email" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "contacted", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerEmail", "message"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles with role management."
+    },
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Gallery of scapespace projects."
+    },
+    "/consultations/{requestId}": {
+      "schema": "ConsultationRequest",
+      "description": "Inquiries from the front-end homepage."
+    }
+  }
+}

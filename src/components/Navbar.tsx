@@ -1,0 +1,91 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, User, LogOut, Settings } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { auth } from '../lib/firebase';
+import { cn } from '../lib/utils';
+
+const Navbar: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { user, profile, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    navigate('/');
+  };
+
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#F9F8F6] border-b border-[#E5E1D8] shadow-[0_10px_30px_rgba(26,26,26,0.04)]">
+      <div className="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
+        <div className="flex items-center gap-4">
+          <button 
+            className="md:hidden scale-100 active:scale-95 transition-transform text-[#1A1A1A]"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        <Link to="/" className="text-xl font-serif font-light tracking-[0.2em] text-[#1A1A1A] uppercase">
+          scapespace.interiors
+        </Link>
+
+        <div className="hidden md:flex items-center gap-8">
+          <nav className="flex gap-6">
+            <Link to="/" className="font-serif tracking-tight text-[#1A1A1A] hover:text-[#C5A059] transition-colors duration-300">Home</Link>
+            <a href="#services" className="font-serif tracking-tight text-[#1A1A1A] hover:text-[#C5A059] transition-colors duration-300">Services</a>
+            <a href="#projects" className="font-serif tracking-tight text-[#1A1A1A] hover:text-[#C5A059] transition-colors duration-300">Gallery</a>
+          </nav>
+          
+          <div className="flex items-center gap-4 border-l border-brand-stone/20 pl-6">
+            {user ? (
+              <div className="flex items-center gap-4">
+                {isAdmin && (
+                  <Link to="/admin" className="text-brand-charcoal hover:scale-105 transition-transform">
+                    <Settings className="w-5 h-5" />
+                  </Link>
+                )}
+                <span className="text-sm font-medium">{profile?.displayName}</span>
+                <button 
+                  onClick={handleLogout}
+                  className="text-brand-charcoal hover:text-red-600 transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <Link to="/login" className="scale-100 active:scale-95 transition-transform text-[#1A1A1A]">
+                <User className="w-6 h-6" />
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden bg-brand-cream border-b border-brand-stone/10 p-6 flex flex-col gap-4">
+          <Link to="/" onClick={() => setIsOpen(false)} className="font-serif text-lg">Home</Link>
+          <a href="#services" onClick={() => setIsOpen(false)} className="font-serif text-lg">Services</a>
+          <a href="#projects" onClick={() => setIsOpen(false)} className="font-serif text-lg">Gallery</a>
+          {user ? (
+            <>
+              {isAdmin && <Link to="/admin" onClick={() => setIsOpen(false)} className="font-serif text-lg flex items-center gap-2 text-brand-gold"><Settings className="w-4 h-4"/> Admin</Link>}
+              <button 
+                onClick={() => { handleLogout(); setIsOpen(false); }}
+                className="font-serif text-lg text-left text-red-600"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link to="/login" onClick={() => setIsOpen(false)} className="font-serif text-lg">Login</Link>
+          )}
+        </div>
+      )}
+    </header>
+  );
+};
+
+export default Navbar;

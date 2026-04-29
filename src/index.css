@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Noto Serif", serif;
+  --font-sans: "Inter", sans-serif;
+  
+  --color-brand-charcoal: #1A1A1A;
+  --color-brand-gold: #C5A059;
+  --color-brand-cream: #F9F7F2;
+  --color-brand-stone: #6B6B6B;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-brand-cream text-brand-charcoal;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+

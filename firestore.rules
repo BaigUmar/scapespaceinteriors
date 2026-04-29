@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'displayName', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 255 &&
+             data.role in ['admin', 'customer'] &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.createdAt is string;
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['title', 'category', 'year', 'description', 'imageUrl', 'status', 'order']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.year is string && data.year.size() == 4 &&
+             (!data.keys().contains('price') || (data.price is string && data.price.size() <= 50)) &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+             data.status in ['public', 'draft'] &&
+             data.order is number;
+    }
+
+    function isValidConsultation(data) {
+      return data.keys().hasAll(['customerName', 'customerEmail', 'message', 'status', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.customerEmail is string && data.customerEmail.size() <= 255 &&
+             data.message is string && data.message.size() <= 5000 &&
+             data.status in ['pending', 'contacted', 'completed'] &&
+             data.createdAt is string;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().role == 'customer' || 
+        incoming().email == 'umarbaig2006@gmail.com'
+      );
+      allow update: if (isOwner(userId) || isAdmin()) && (
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName']) && isValidUser(incoming())) ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasAny(['role', 'displayName']) && isValidUser(incoming()))
+      );
+    }
+
+    match /projects/{projectId} {
+      allow read: if (existing().status == 'public') || isAdmin();
+      allow create: if isAdmin() && isValidProject(incoming());
+      allow update: if isAdmin() && isValidProject(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /consultations/{requestId} {
+      allow read: if isAdmin();
+      allow create: if isValidConsultation(incoming()) && incoming().status == 'pending';
+      allow update: if isAdmin() && isValidConsultation(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}
