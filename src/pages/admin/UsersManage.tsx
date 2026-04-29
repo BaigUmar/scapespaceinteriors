@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../../lib/firebase';
 import { collection, query, onSnapshot, updateDoc, doc } from 'firebase/firestore';
 import { UserProfile, UserRole } from '../../types';
-import { Shield, ShieldAlert, User } from 'lucide-react';
+import { Shield, ShieldAlert } from 'lucide-react';
+import { handleFirestoreError, OperationType } from '../../lib/error-handler';
 
 const UsersManage: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -13,19 +14,22 @@ const UsersManage: React.FC = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile)));
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
     return () => unsubscribe();
   }, []);
 
+  const [confirmingUid, setConfirmingUid] = useState<string | null>(null);
+
   const toggleRole = async (user: UserProfile) => {
     const newRole: UserRole = user.role === 'admin' ? 'customer' : 'admin';
-    if (!confirm(`Change ${user.displayName}'s role to ${newRole}?`)) return;
     
     try {
       await updateDoc(doc(db, 'users', user.uid), { role: newRole });
+      setConfirmingUid(null);
     } catch (err) {
-      console.error(err);
-      alert('Permission denied or update failed');
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
   };
 
@@ -69,13 +73,30 @@ const UsersManage: React.FC = () => {
                     </span>
                   </td>
                   <td className="p-4">
-                    <button 
-                      onClick={() => toggleRole(user)}
-                      className="text-xs font-semibold tracking-widest text-brand-gold uppercase hover:opacity-70 flex items-center gap-2"
-                    >
-                      {user.role === 'admin' ? <ShieldAlert size={14}/> : <Shield size={14}/>} 
-                      Toggle Role
-                    </button>
+                    {confirmingUid === user.uid ? (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => toggleRole(user)}
+                          className="bg-brand-gold text-white px-3 py-1 text-[10px] font-bold uppercase rounded-sm hover:bg-brand-charcoal transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button 
+                          onClick={() => setConfirmingUid(null)}
+                          className="text-brand-stone text-[10px] font-bold uppercase hover:text-brand-charcoal transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => setConfirmingUid(user.uid)}
+                        className="text-xs font-semibold tracking-widest text-brand-gold uppercase hover:opacity-70 flex items-center gap-2"
+                      >
+                        {user.role === 'admin' ? <ShieldAlert size={14}/> : <Shield size={14}/>} 
+                        Toggle Role
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

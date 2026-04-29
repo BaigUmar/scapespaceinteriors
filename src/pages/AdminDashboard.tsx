@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 const AdminDashboard: React.FC = () => {
   const cards = [
     { title: 'Project Management', desc: 'Manage gallery items and status', icon: FileText, link: '/admin/projects', color: 'bg-blue-50' },
+    { title: 'Ideas & Pricing', desc: 'Manage estimator options and prices', icon: FileText, link: '/admin/ideas', color: 'bg-amber-50' },
     { title: 'User Management', desc: 'Control roles and access levels', icon: Users, link: '/admin/users', color: 'bg-purple-50' },
     { title: 'Inquiries', desc: 'Manage consultation requests', icon: MessageSquare, link: '/admin/consultations', color: 'bg-green-50' },
   ];

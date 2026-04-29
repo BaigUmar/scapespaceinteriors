@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { db } from '../lib/firebase';
 import { collection, addDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { Project } from '../types';
+import { handleFirestoreError, OperationType } from '../lib/error-handler';
 
 const Home: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -17,7 +19,9 @@ const Home: React.FC = () => {
       orderBy('order', 'asc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setProjectsList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)));
+      setProjectsList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)).slice(0, 4));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'projects');
     });
     return () => unsubscribe();
   }, []);
@@ -37,7 +41,7 @@ const Home: React.FC = () => {
       setSubmitted(true);
       setEmail('');
     } catch (error) {
-      console.error("Error submitting consultation:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'consultations');
     } finally {
       setIsSubmitting(false);
     }
@@ -61,20 +65,7 @@ const Home: React.FC = () => {
     }
   ];
 
-  const displayProjects = projectsList.length > 0 ? projectsList : [
-    {
-      id: '1',
-      title: "Project Zenith",
-      category: "RESIDENTIAL / 2023",
-      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuD5r4gWsNxSJw3TyITYzLyVGom0R2da1SxkqZ6TE3zRxN0cmH9Ual3YQtSUWP1_x_g9hyzOd6z35oh3gGWB0iB1a-mrL_trKdky_UxYMrWlDWMhlwBenaM10SJKjsajg2JocHedAAc5xCSY8cAunzBpn53NU8C4sk3rhSYeedC_1TH9RkPW6nxEoteg5xDgQ6ynZDagOoHQZOP5n3Uiq8aImmW9Cbcndqf3Lys8q3qLPgnoeosda4SUW0CLftLg4nOrerLqGK_mdnc"
-    },
-    {
-      id: '2',
-      title: "The Gilded Kitchen",
-      category: "INTERIOR ARCHITECTURE / 2024",
-      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuD7aFJHX_xVajD3bLCFthx6paFufPymiRWdCp3DUzAXLD4OoKz-VlPEdyJr5NVJXCFgR6ZxFMIJexgLw47M0dgkokSjc3sIBVLuD8E6DQySX-2G6MF5OVbpLK5_V2sGoYnrQ_99LaMECnx6CmGE02aIYnE4rWHqF0goDSD2Lyi5O3Lwehja_yz0Dj2j58dvRgWPy9jdt88GB55Kb0Y8weg1irQ5xkLkCEtNe4yqLdywo_O38aEkzqQYN0aX0W04iEEk0QxfjbwLVLM"
-    }
-  ];
+  const displayProjects = projectsList;
 
   return (
     <div className="pt-16 pb-20 md:pb-0">
@@ -108,13 +99,21 @@ const Home: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
-            className="flex justify-center"
+            className="flex flex-col md:flex-row justify-center gap-6"
           >
             <a 
               href="#consult"
               className="bg-brand-charcoal text-white px-12 py-4 rounded-sm font-medium tracking-widest uppercase hover:bg-brand-gold transition-colors duration-300"
             >
               START CONSULTATION
+            </a>
+            <a 
+              href="https://wa.me/918052910275"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border-2 border-brand-charcoal text-brand-charcoal px-12 py-4 rounded-sm font-medium tracking-widest uppercase hover:bg-brand-charcoal hover:text-white transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              WhatsApp Consult
             </a>
           </motion.div>
         </div>
@@ -128,21 +127,22 @@ const Home: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {specializations.map((item, idx) => (
-            <motion.div 
-              key={idx}
-              whileHover={{ y: -5 }}
-              className="group cursor-pointer"
-            >
-              <div className="aspect-[4/5] overflow-hidden border border-brand-stone/10 mb-6 transition-all duration-500 group-hover:border-brand-gold">
-                <img 
-                  alt={item.title}
-                  className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
-                  src={item.img}
-                />
-              </div>
-              <h3 className="text-xl font-serif text-brand-charcoal group-hover:text-brand-gold transition-colors">{item.title}</h3>
-              <p className="text-sm text-brand-stone mt-2">{item.desc}</p>
-            </motion.div>
+            <Link to="/discover" key={idx}>
+              <motion.div 
+                whileHover={{ y: -5 }}
+                className="group cursor-pointer"
+              >
+                <div className="aspect-[4/5] overflow-hidden border border-brand-stone/10 mb-6 transition-all duration-500 group-hover:border-brand-gold">
+                  <img 
+                    alt={item.title}
+                    className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+                    src={item.img}
+                  />
+                </div>
+                <h3 className="text-xl font-serif text-brand-charcoal group-hover:text-brand-gold transition-colors">{item.title}</h3>
+                <p className="text-sm text-brand-stone mt-2">{item.desc}</p>
+              </motion.div>
+            </Link>
           ))}
         </div>
       </section>
@@ -182,32 +182,39 @@ const Home: React.FC = () => {
             <h2 className="text-3xl font-serif text-brand-charcoal">Selected Projects</h2>
             <p className="text-md text-brand-stone mt-2">A curation of our recent spatial explorations.</p>
           </div>
-          <button className="text-xs font-semibold tracking-widest text-brand-gold underline underline-offset-8 hover:opacity-70 transition-all uppercase">VIEW ALL PROJECTS</button>
+          <Link to="/projects" className="text-xs font-semibold tracking-widest text-brand-gold underline underline-offset-8 hover:opacity-70 transition-all uppercase">VIEW ALL PROJECTS</Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {displayProjects.map((project: any, idx) => (
-            <motion.div key={idx} className="group">
-              <div className="aspect-video overflow-hidden mb-6 shadow-[0_10px_30px_rgba(26,26,26,0.04)] border border-brand-stone/10">
-                <img 
-                  alt={project.title}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                  src={project.imageUrl || project.img}
-                />
-              </div>
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-xs font-semibold tracking-widest text-brand-gold uppercase">{project.category}</span>
-                  <h4 className="text-xl font-serif text-brand-charcoal mt-1">{project.title}</h4>
+        
+        {displayProjects.length === 0 ? (
+          <div className="py-12 border border-dashed border-brand-stone/20 rounded-sm text-center">
+            <p className="text-brand-stone italic">No projects currently listed in public gallery.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {displayProjects.map((project: any, idx) => (
+              <motion.div key={idx} className="group">
+                <div className="aspect-video overflow-hidden mb-6 shadow-[0_10px_30px_rgba(26,26,26,0.04)] border border-brand-stone/10">
+                  <img 
+                    alt={project.title}
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                    src={project.imageUrl || project.img}
+                  />
                 </div>
-                {project.price && (
-                  <span className="text-sm font-semibold text-brand-charcoal bg-brand-gold/10 px-3 py-1 rounded-full">
-                    {project.price}
-                  </span>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-xs font-semibold tracking-widest text-brand-gold uppercase">{project.category}</span>
+                    <h4 className="text-xl font-serif text-brand-charcoal mt-1">{project.title}</h4>
+                  </div>
+                  {project.price && (
+                    <span className="text-sm font-semibold text-brand-charcoal bg-brand-gold/10 px-3 py-1 rounded-full">
+                      {project.price}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Newsletter */}

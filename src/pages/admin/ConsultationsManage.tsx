@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../../lib/firebase';
 import { collection, query, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { ConsultationRequest } from '../../types';
-import { CheckCircle, Clock, Trash2, Mail } from 'lucide-react';
+import { CheckCircle, Mail, Trash2 } from 'lucide-react';
+import { handleFirestoreError, OperationType } from '../../lib/error-handler';
 
 const ConsultationsManage: React.FC = () => {
   const [requests, setRequests] = useState<ConsultationRequest[]>([]);
@@ -13,6 +14,8 @@ const ConsultationsManage: React.FC = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ConsultationRequest)));
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'consultations');
     });
     return () => unsubscribe();
   }, []);
@@ -21,16 +24,18 @@ const ConsultationsManage: React.FC = () => {
     try {
       await updateDoc(doc(db, 'consultations', id), { status: newStatus });
     } catch (err) {
-      console.error(err);
+      handleFirestoreError(err, OperationType.UPDATE, `consultations/${id}`);
     }
   };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this request?')) return;
     try {
       await deleteDoc(doc(db, 'consultations', id));
+      setDeletingId(null);
     } catch (err) {
-      console.error(err);
+      handleFirestoreError(err, OperationType.DELETE, `consultations/${id}`);
     }
   };
 
@@ -67,28 +72,48 @@ const ConsultationsManage: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => updateStatus(req.id, 'contacted')}
-                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-full transition-colors"
-                    title="Mark as Contacted"
-                  >
-                    <Mail size={20} />
-                  </button>
-                  <button 
-                    onClick={() => updateStatus(req.id, 'completed')}
-                    className="p-2 hover:bg-green-50 text-green-600 rounded-full transition-colors"
-                    title="Mark as Completed"
-                  >
-                    <CheckCircle size={20} />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(req.id)}
-                    className="p-2 hover:bg-red-50 text-red-600 rounded-full transition-colors"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </div>
+                  <div className="flex items-center gap-2">
+                    {deletingId === req.id ? (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleDelete(req.id)}
+                          className="bg-red-600 text-white px-3 py-1 text-[10px] font-bold uppercase rounded-sm hover:bg-red-700"
+                        >
+                          Confirm
+                        </button>
+                        <button 
+                          onClick={() => setDeletingId(null)}
+                          className="text-brand-stone text-[10px] font-bold uppercase"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => updateStatus(req.id, 'contacted')}
+                          className="p-2 hover:bg-blue-50 text-blue-600 rounded-full transition-colors"
+                          title="Mark as Contacted"
+                        >
+                          <Mail size={20} />
+                        </button>
+                        <button 
+                          onClick={() => updateStatus(req.id, 'completed')}
+                          className="p-2 hover:bg-green-50 text-green-600 rounded-full transition-colors"
+                          title="Mark as Completed"
+                        >
+                          <CheckCircle size={20} />
+                        </button>
+                        <button 
+                          onClick={() => setDeletingId(req.id)}
+                          className="p-2 hover:bg-red-50 text-red-600 rounded-full transition-colors"
+                          title="Delete Request"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </>
+                    )}
+                  </div>
               </div>
             </div>
           ))}

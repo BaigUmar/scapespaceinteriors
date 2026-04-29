@@ -41,6 +41,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["customerEmail", "message"]
+    },
+    "Idea": {
+      "title": "Design Idea",
+      "description": "Options and modifications for the estimator tool.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "category": { "type": "string", "enum": ["home", "kitchen", "wardrobe"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "price", "imageUrl", "category"]
     }
   },
   "firestore": {
@@ -55,6 +69,10 @@
     "/consultations/{requestId}": {
       "schema": "ConsultationRequest",
       "description": "Inquiries from the front-end homepage."
+    },
+    "/ideas/{ideaId}": {
+      "schema": "Idea",
+      "description": "Decoration ideas and pricing for the estimator."
     }
   }
 }

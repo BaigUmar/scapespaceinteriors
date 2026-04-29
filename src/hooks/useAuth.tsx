@@ -33,7 +33,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profileSnap = await getDoc(profileRef);
         
         if (profileSnap.exists()) {
-          setProfile(profileSnap.data() as UserProfile);
+          const data = profileSnap.data() as UserProfile;
+          const isAdminEmail = firebaseUser.email === 'umarbaig2006@gmail.com';
+          if (isAdminEmail && data.role !== 'admin') {
+            // Force update to admin if it's the special email
+            const updatedProfile = { ...data, role: 'admin' as const };
+            await setDoc(profileRef, updatedProfile);
+            setProfile(updatedProfile);
+          } else {
+            setProfile(data);
+          }
         } else {
           // Create default profile for first-time login
           const isAdminEmail = firebaseUser.email === 'umarbaig2006@gmail.com';

@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../../lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { Project } from '../../types';
-import { Trash2, Plus, Edit2, Save, X } from 'lucide-react';
+import { Trash2, Plus, Edit2, X } from 'lucide-react';
+import { handleFirestoreError, OperationType } from '../../lib/error-handler';
 
 const ProjectsManage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newProject, setNewProject] = useState<Partial<Project>>({
-    title: '', category: '', year: '2024', price: '', description: '', imageUrl: '', status: 'draft', order: 0
+    title: '', category: '', year: new Date().getFullYear().toString(), price: '', description: '', imageUrl: '', status: 'public', order: 0
   });
 
   useEffect(() => {
@@ -17,6 +19,8 @@ const ProjectsManage: React.FC = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)));
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'projects');
     });
     return () => unsubscribe();
   }, []);
@@ -24,13 +28,26 @@ const ProjectsManage: React.FC = () => {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'projects'), { ...newProject, order: projects.length });
+      // Remove id from the payload to avoid Firestore errors
+      const { id, ...dataToSave } = newProject as Project & { id?: string };
+      
+      if (editingId) {
+        await updateDoc(doc(db, 'projects', editingId), dataToSave);
+        setEditingId(null);
+      } else {
+        await addDoc(collection(db, 'projects'), { ...dataToSave, order: projects.length });
+      }
       setIsAdding(false);
-      setNewProject({ title: '', category: '', year: '2024', price: '', description: '', imageUrl: '', status: 'draft', order: 0 });
+      setNewProject({ title: '', category: '', year: '2024', price: '', description: '', imageUrl: '', status: 'public', order: 0 });
     } catch (err) {
-      console.error(err);
-      alert('Failed to add project');
+      handleFirestoreError(err, editingId ? OperationType.UPDATE : OperationType.CREATE, 'projects');
     }
+  };
+
+  const handleEdit = (project: Project) => {
+    setNewProject(project);
+    setEditingId(project.id);
+    setIsAdding(true);
   };
 
   const toggleStatus = async (project: Project) => {
@@ -39,16 +56,18 @@ const ProjectsManage: React.FC = () => {
         status: project.status === 'public' ? 'draft' : 'public'
       });
     } catch (err) {
-      console.error(err);
+      handleFirestoreError(err, OperationType.UPDATE, `projects/${project.id}`);
     }
   };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure?')) return;
     try {
       await deleteDoc(doc(db, 'projects', id));
+      setDeletingId(null);
     } catch (err) {
-      console.error(err);
+      handleFirestoreError(err, OperationType.DELETE, `projects/${id}`);
     }
   };
 
@@ -60,7 +79,11 @@ const ProjectsManage: React.FC = () => {
           <p className="text-brand-stone">Manage your portfolio works.</p>
         </div>
         <button 
-          onClick={() => setIsAdding(true)}
+          onClick={() => {
+            setEditingId(null);
+            setNewProject({ title: '', category: '', year: new Date().getFullYear().toString(), price: '', description: '', imageUrl: '', status: 'public', order: projects.length });
+            setIsAdding(true);
+          }}
           className="bg-brand-charcoal text-white flex items-center gap-2 px-6 py-3 rounded-sm font-medium tracking-widest uppercase hover:bg-brand-gold transition-colors"
         >
           <Plus className="w-4 h-4" /> Add New
@@ -70,16 +93,16 @@ const ProjectsManage: React.FC = () => {
       {isAdding && (
         <form onSubmit={handleAdd} className="bg-white border border-brand-gold p-8 mb-12 shadow-md">
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-serif">New Project</h2>
+            <h2 className="text-2xl font-serif">{editingId ? 'Edit Project' : 'New Project'}</h2>
             <button type="button" onClick={() => setIsAdding(false)}><X/></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <input required placeholder="Title" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} className="border-b py-2"/>
             <input required placeholder="Category" value={newProject.category} onChange={e => setNewProject({...newProject, category: e.target.value})} className="border-b py-2"/>
             <input required placeholder="Year" value={newProject.year} onChange={e => setNewProject({...newProject, year: e.target.value})} className="border-b py-2"/>
-            <input placeholder="Price (e.g. $5,000)" value={newProject.price} onChange={e => setNewProject({...newProject, price: e.target.value})} className="border-b py-2"/>
+            <input placeholder="Price (Optional)" value={newProject.price} onChange={e => setNewProject({...newProject, price: e.target.value})} className="border-b py-2"/>
             <input required placeholder="Image URL" value={newProject.imageUrl} onChange={e => setNewProject({...newProject, imageUrl: e.target.value})} className="border-b py-2"/>
-            <textarea placeholder="Description" value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} className="border-b py-2 md:col-span-2 h-24"/>
+            <textarea required placeholder="Description" value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} className="border-b py-2 md:col-span-2 h-24"/>
           </div>
           <button className="mt-8 bg-brand-charcoal text-white px-12 py-4 rounded-sm tracking-widest uppercase">Save Project</button>
         </form>
@@ -100,19 +123,49 @@ const ProjectsManage: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => toggleStatus(project)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  title={project.status === 'public' ? 'Set to Draft' : 'Publish'}
-                >
-                  <Edit2 className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={() => handleDelete(project.id)}
-                  className="p-2 hover:bg-red-50 text-red-600 rounded-full transition-colors"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                {deletingId === project.id ? (
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => handleDelete(project.id)}
+                      className="bg-red-600 text-white px-3 py-1 text-[10px] font-bold uppercase rounded-sm hover:bg-red-700 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button 
+                      onClick={() => setDeletingId(null)}
+                      className="text-brand-stone text-[10px] font-bold uppercase hover:text-brand-charcoal transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => handleEdit(project)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      title="Edit Details"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={() => toggleStatus(project)}
+                      className={`px-3 py-1 text-[10px] font-bold tracking-tighter uppercase border rounded-full transition-all ${
+                        project.status === 'public' 
+                          ? 'border-green-600 text-green-600 hover:bg-green-600 hover:text-white' 
+                          : 'border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white'
+                      }`}
+                    >
+                      {project.status === 'public' ? 'Live' : 'Draft'}
+                    </button>
+                    <button 
+                      onClick={() => setDeletingId(project.id)}
+                      className="p-2 hover:bg-red-50 text-red-600 rounded-full transition-colors"
+                      title="Delete Project"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}

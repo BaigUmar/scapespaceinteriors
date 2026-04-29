@@ -28,3 +28,13 @@ export interface ConsultationRequest {
   status: 'pending' | 'contacted' | 'completed';
   createdAt: string;
 }
+
+export interface Idea {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  category: 'home' | 'kitchen' | 'wardrobe';
+  createdAt: string;
+}
